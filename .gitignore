@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js build
+.next/
+**/.next/
+
+# Production build
+out/
+dist/
+build/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# OS files
+Thumbs.db
+
+# Vercel
+.vercel/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Cache
+.cache/
