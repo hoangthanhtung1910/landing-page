@@ -6,10 +6,34 @@ __v0_jsx-dev-runtime.ts
 .v0-trash/
 .vercel/
 
-# Environment variables
+# Environment variables (keep .env.example tracked)
+.env
+.env.local
 .env*.local
 
-# Common ignores
-node_modules
+# Dependencies
+node_modules/
+
+# Build output
 .next/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Editor metadata
+.idea/
+.vscode/
+
+# Local media storage (local storage adapter)
+apps/api/storage/
+
+# OS
 .DS_Store
+Thumbs.db

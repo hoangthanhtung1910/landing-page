@@ -1,0 +1,6 @@
+import type { ServiceOffering } from "@vyvy/content-types"
+import { SectionIcon } from "./section-icon"
+
+export function Services({ items }: { items: ServiceOffering[] }) {
+  return <section id="dich-vu" className="scroll-mt-20 bg-card"><div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24"><div className="mx-auto max-w-2xl text-center"><p className="text-sm font-semibold uppercase tracking-wider text-primary">Dịch vụ</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Mua hàng Hàn Quốc thuận tiện hơn</h2></div>{items.length === 0 ? <p className="mt-10 rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground">Dịch vụ đang được cập nhật. Bạn vẫn có thể liên hệ để được tư vấn trực tiếp.</p> : <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{items.map((item) => <article key={item.id} className="rounded-2xl border border-border bg-background p-6"><span className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground"><SectionIcon name={item.icon} className="size-5" /></span><h3 className="mt-5 text-lg font-bold">{item.title}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.description}</p></article>)}</div>}</div></section>
+}

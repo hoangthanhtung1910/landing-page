@@ -1,0 +1,14 @@
+# Local development services for the VyVy Order Korea CMS.
+# Only MongoDB is needed locally; media uses the local-disk storage adapter (apps/api).
+services:
+  mongo:
+    image: mongo:7
+    container_name: vyvy-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - vyvy_mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  vyvy_mongo_data:

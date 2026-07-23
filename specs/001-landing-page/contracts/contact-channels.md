@@ -1,12 +1,24 @@
 # Contract: Contact Channels (Zalo / Kakao / Phone)
 
-**Feature**: 001-landing-page | **Date**: 2026-07-14
+**Feature**: 001-landing-page | **Date**: 2026-07-14 (revised 2026-07-16 — sourced from CMS)
 
-Defines how contact destinations are configured and turned into working links with graceful fallback. Implemented in `lib/contact.ts`. Satisfies FR-010, FR-011, FR-012, FR-016.
+Defines how contact destinations are configured and turned into working links with graceful fallback.
+Implemented in `apps/web/lib/contact.ts`. Satisfies FR-010, FR-011, FR-012, FR-016. Channel data is now
+**CMS-managed contact content** (edited by admins via the admin API) rather than a static file; the
+link-building rules below are unchanged.
 
 ## Channel configuration
 
-The business supplies raw handles; the module builds resolved `href`s. All values are placeholders until real ones are provided (see spec Assumptions).
+The business supplies raw handles through the CMS; the module builds resolved `href`s. The resolved
+`href` is a **derived, non-persisted view value** — it is NOT stored and NOT part of the public
+`ContactChannel` schema (which has only `type`, `label`, `handle`, `icon`, `external`). Admin DTOs MUST
+NOT persist an `href`. Seed/placeholder values are development-only and MUST be replaced with verified
+real destinations before launch (FR-045); production must never ship placeholder contact links
+(SC-017).
+
+**Uniqueness (INV-10)**: within `content.contact` each channel `type` appears at most once, so a
+`CtaRef` (which references a destination by `type` alone) resolves deterministically. Full-page
+validation rejects a duplicated type at `contact.<index>.type`.
 
 | type | Raw input (business supplies) | Resolved `href` | Fallback behavior |
 |------|-------------------------------|-----------------|-------------------|
@@ -20,23 +32,31 @@ The business supplies raw handles; the module builds resolved `href`s. All value
 
 **Rule R-2**: All external channel links render with `target="_blank"` and `rel="noopener noreferrer"`.
 
-**Rule R-3**: If a raw handle is missing/empty, the builder returns a safe placeholder `href="#"` and the button is visibly marked as "coming soon" rather than producing a broken/dead link. (edge case: no content yet)
+**Rule R-3**: Published/public content never carries an empty or malformed handle — the shared public
+schema requires every `handle` to be non-empty and valid for its channel `type`, and fail-closed
+build/validation rejects anything else. `buildHref`'s missing-handle branch (returns a safe
+placeholder `href="#"` and marks the button "coming soon") is a **defensive runtime guard** for
+not-yet-configured/preview states, not a path that published data can reach. (edge case: no content yet)
 
 ## Link builder contract
 
 ```ts
-// lib/contact.ts
+// apps/web/lib/contact.ts
 function buildHref(channel: ContactChannel): string  // applies the table + R-1/R-3
 function isResolvable(channel: ContactChannel): boolean // false when handle missing
 ```
 
-- `buildHref` is pure and deterministic given a channel.
-- The sticky `contact-bar.tsx` and every CTA button consume the SAME channel objects, so a single edit updates all touchpoints. (FR-016)
+- `buildHref` is pure and deterministic given a channel; unit-tested (task T016B).
+- The sticky `contact-bar.tsx` and every CTA button consume the SAME channel objects (from
+  `content.contact`), so a single admin edit updates all touchpoints. (FR-016)
 
 ## Placement contract (FR-012)
 
-- Zalo + Kakao actions appear in: Hero (§1, above fold), Contact CTA (§7), Footer (§8), site header (desktop), and a sticky bottom bar on mobile.
-- The sticky mobile bar is present at every scroll position; therefore a contact action is always reachable without scrolling to the top. (FR-012, US1 acceptance #2)
+- Zalo + Kakao actions appear in: Hero (§1, above fold), Contact CTA (§7), Footer (§8), site header,
+  and a sticky bottom bar on mobile.
+- A contact action is reachable from **every scroll position on all supported layouts**: a sticky
+  bottom bar on mobile AND a sticky header or floating contact affordance on desktop (not solely a
+  non-sticky header CTA). (FR-012, US1 acceptance #2)
 
 ## Verification hooks
 
