@@ -2,9 +2,9 @@ import type { ContactChannel, CtaRef } from "@vyvy/content-types"
 
 /**
  * Contact-link builder (T016B) — see specs/001-landing-page/contracts/contact-channels.md.
- * Only https channel URLs are used for Zalo/Kakao (they self-degrade to a web page
- * when the app is absent); phone/email use native schemes. A missing handle yields
- * a safe "#" placeholder rather than a dead link (Rule R-3).
+ * Only https channel URLs are used for Zalo/Kakao/Messenger (they self-degrade to
+ * a web page when the app is absent); phone/email use native schemes. A missing
+ * handle yields a safe "#" placeholder rather than a dead link (Rule R-3).
  */
 
 const PLACEHOLDER_HREF = "#"
@@ -22,6 +22,8 @@ export function buildHref(channel: ContactChannel): string {
       return `https://zalo.me/${encodeURIComponent(handle)}`
     case "kakao":
       return `https://pf.kakao.com/${encodeURIComponent(handle)}`
+    case "messenger":
+      return `https://m.me/${encodeURIComponent(handle)}`
     case "phone":
       return `tel:${handle.replace(/\s+/g, "")}`
     case "email":

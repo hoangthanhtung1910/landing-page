@@ -21,6 +21,10 @@ test("kakao builds https pf.kakao.com channel link", () => {
   assert.equal(buildHref(ch({ type: "kakao", handle: "vyvyorder" })), "https://pf.kakao.com/vyvyorder")
 })
 
+test("messenger builds https m.me link", () => {
+  assert.equal(buildHref(ch({ type: "messenger", handle: "vyvy.order" })), "https://m.me/vyvy.order")
+})
+
 test("phone builds tel: link without spaces", () => {
   assert.equal(buildHref(ch({ type: "phone", handle: "+84 900 000 000" })), "tel:+84900000000")
 })

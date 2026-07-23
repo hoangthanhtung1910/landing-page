@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { COLLECTION_NAMES } from '../database/collection-names';
 
 export const AuditEventSchema = new Schema({
   actor: { type: Schema.Types.ObjectId, ref: 'AdminUser', required: true, index: true },
@@ -12,4 +13,6 @@ export const AuditEventSchema = new Schema({
   createdAt: { type: Date, default: Date.now, index: true },
 });
 
-export const auditModels = [{ name: 'AuditEvent', schema: AuditEventSchema }];
+export const auditModels = [
+  { name: 'AuditEvent', schema: AuditEventSchema, collection: COLLECTION_NAMES.AuditEvent },
+];

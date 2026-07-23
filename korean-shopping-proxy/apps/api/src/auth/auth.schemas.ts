@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { COLLECTION_NAMES } from '../database/collection-names';
 
 /**
  * Server-side admin session (T024). The random `_id` is the opaque token carried
@@ -50,7 +51,7 @@ export const SecurityEventSchema = new Schema({
 });
 
 export const authModels = [
-  { name: 'AdminSession', schema: AdminSessionSchema },
-  { name: 'LoginAttempt', schema: LoginAttemptSchema },
-  { name: 'SecurityEvent', schema: SecurityEventSchema },
+  { name: 'AdminSession', schema: AdminSessionSchema, collection: COLLECTION_NAMES.AdminSession },
+  { name: 'LoginAttempt', schema: LoginAttemptSchema, collection: COLLECTION_NAMES.LoginAttempt },
+  { name: 'SecurityEvent', schema: SecurityEventSchema, collection: COLLECTION_NAMES.SecurityEvent },
 ];

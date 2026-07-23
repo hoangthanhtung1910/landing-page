@@ -9,6 +9,7 @@ import { ReleasesService } from './releases.service';
 export class ReleasesController {
   constructor(@Inject(ReleasesService) private readonly releases: ReleasesService) {}
   @Post('publish') publish(@CurrentAdmin() admin: AuthenticatedAdmin) { return this.releases.publish(admin); }
+  @Post('revalidate') revalidate(@CurrentAdmin() admin: AuthenticatedAdmin) { return this.releases.revalidateCurrent(admin); }
   @Post('rollback') rollback(@CurrentAdmin() admin: AuthenticatedAdmin) { return this.releases.rollback(admin); }
   @Get('releases') list() { return this.releases.list(); }
   @Get('releases/current') current() { return this.releases.currentSummary(); }

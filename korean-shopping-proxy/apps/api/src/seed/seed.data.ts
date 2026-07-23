@@ -73,14 +73,16 @@ export function buildSeed(mediaBase: string) {
     contactChannels: [
       { type: 'zalo', label: 'Zalo', handle: '0900000000', icon: 'message-circle', external: true, order: 1, publishState: 'published' },
       { type: 'kakao', label: 'KakaoTalk', handle: 'vyvyorder', icon: 'message-square', external: true, order: 2, publishState: 'published' },
-      { type: 'phone', label: 'Hotline', handle: '+84900000000', icon: 'phone', external: false, order: 3, publishState: 'published' },
+      { type: 'messenger', label: 'Messenger', handle: 'vyvyorder', icon: 'message-circle-more', external: true, order: 3, publishState: 'published' },
+      { type: 'phone', label: 'Hotline', handle: '+84900000000', icon: 'phone', external: false, order: 4, publishState: 'published' },
     ],
     cta: {
       headline: 'Bắt đầu đơn hàng Hàn Quốc của bạn ngay hôm nay',
-      subtext: 'Nhắn Zalo hoặc Kakao để được tư vấn miễn phí.',
+      subtext: 'Nhắn Zalo, Kakao hoặc Messenger để được tư vấn miễn phí.',
       channels: [
         { label: 'Liên hệ Zalo', channel: 'zalo' },
         { label: 'Liên hệ Kakao', channel: 'kakao' },
+        { label: 'Nhắn Messenger', channel: 'messenger' },
       ],
       publishState: 'published',
     },

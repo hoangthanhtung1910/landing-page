@@ -202,7 +202,7 @@ The page MUST express a consistent brand identity across all sections.
 Each content entity above is now a **persisted, managed record** in the CMS (not a hardcoded value), typically carrying: a stable identifier, a display order (where the section is a list), a publish state (draft/published), and created/updated timestamps. Additional CMS-specific entities:
 
 - **Hero content**: The single hero record — headline, subheadline/value proposition, slogan, primary/secondary call-to-action references, optional hero media.
-- **Contact information**: The managed set of contact channels (Zalo, Kakao, phone, email, socials) with their handles/destinations; edited by administrators.
+- **Contact information**: The managed set of contact channels (Zalo, Kakao, Messenger, phone, email, socials) with their handles/destinations; edited by administrators.
 - **SEO metadata**: Managed page-level SEO fields — title, meta description, canonical, Open Graph/Twitter fields, and social-share image reference.
 - **Media asset**: An uploaded image managed by the CMS — stored binary/reference, stable public URL, alt text, and optional dimensions; referenced by categories, reviews, hero, and SEO.
 - **Administrator (admin user)**: An authenticated back-office user permitted to manage content; carries credentials/identity (securely hashed), account status (enabled/disabled), and authorization to access admin endpoints under the single v1 administrator role.

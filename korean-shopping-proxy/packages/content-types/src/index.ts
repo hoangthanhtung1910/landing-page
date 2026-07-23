@@ -23,6 +23,7 @@ const nonEmpty = z.string().trim().min(1)
 export const contactChannelTypeSchema = z.enum([
   "zalo",
   "kakao",
+  "messenger",
   "phone",
   "email",
   "social",
@@ -120,12 +121,15 @@ const phoneHandle = nonEmpty.refine(
   { message: "phone handle must be a valid phone number (6–15 digits, optional +)" },
 )
 
-/** Zalo: phone number or OA id. Kakao: channel public id. */
+/** Zalo: phone number or OA id. Kakao: channel public id. Messenger: Facebook username or Page ID. */
 const zaloHandle = nonEmpty.refine((v) => /^[A-Za-z0-9._-]{2,64}$/.test(v), {
   message: "zalo handle must be a phone number or OA id (2–64 chars: letters, digits, . _ -)",
 })
 const kakaoHandle = nonEmpty.refine((v) => /^[A-Za-z0-9._-]{2,64}$/.test(v), {
   message: "kakao handle must be a channel id (2–64 chars: letters, digits, . _ -)",
+})
+const messengerHandle = nonEmpty.refine((v) => /^[A-Za-z0-9._-]{2,64}$/.test(v), {
+  message: "messenger handle must be a Facebook username or Page ID (2–64 chars: letters, digits, . _ -)",
 })
 const emailHandle = z.string().trim().email({ message: "email handle must be a valid address" })
 
@@ -143,7 +147,7 @@ export type ImageRef = z.infer<typeof imageRefSchema>
  * CTA reference — discriminated by `channel` (R3-P1-01):
  *  - `channel: "anchor"` REQUIRES a `target` restricted to an in-page anchor or
  *    a safe site-relative path (never an arbitrary URL/scheme).
- *  - contact-channel CTAs (zalo/kakao/phone/email/social) PROHIBIT `target`
+ *  - contact-channel CTAs (zalo/kakao/messenger/phone/email/social) PROHIBIT `target`
  *    entirely — the destination is always derived from the contact channel.
  */
 const anchorCtaSchema = z
@@ -165,6 +169,7 @@ export const ctaRefSchema = z.discriminatedUnion("channel", [
   anchorCtaSchema,
   channelCtaSchema.extend({ channel: z.literal("zalo") }).strict(),
   channelCtaSchema.extend({ channel: z.literal("kakao") }).strict(),
+  channelCtaSchema.extend({ channel: z.literal("messenger") }).strict(),
   channelCtaSchema.extend({ channel: z.literal("phone") }).strict(),
   channelCtaSchema.extend({ channel: z.literal("email") }).strict(),
   channelCtaSchema.extend({ channel: z.literal("social") }).strict(),
@@ -287,6 +292,9 @@ export const contactChannelSchema = z
         break
       case "kakao":
         check(kakaoHandle)
+        break
+      case "messenger":
+        check(messengerHandle)
         break
       case "phone":
         check(phoneHandle)

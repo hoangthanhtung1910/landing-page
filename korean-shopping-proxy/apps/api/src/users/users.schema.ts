@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { COLLECTION_NAMES } from '../database/collection-names';
 
 /**
  * Back-office admin accounts (single `administrator` role in v1). The password is
@@ -14,4 +15,6 @@ export const AdminUserSchema = new Schema(
   { timestamps: true },
 );
 
-export const userModels = [{ name: 'AdminUser', schema: AdminUserSchema }];
+export const userModels = [
+  { name: 'AdminUser', schema: AdminUserSchema, collection: COLLECTION_NAMES.AdminUser },
+];

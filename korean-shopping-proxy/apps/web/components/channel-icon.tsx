@@ -1,4 +1,4 @@
-import { Globe, Mail, MessageCircle, MessageSquare, Phone, type LucideIcon } from "lucide-react"
+import { Globe, Mail, MessageCircle, MessageCircleMore, MessageSquare, Phone, type LucideIcon } from "lucide-react"
 import type { ContactChannelType } from "@vyvy/content-types"
 
 /**
@@ -10,6 +10,7 @@ import type { ContactChannelType } from "@vyvy/content-types"
 const ICON_BY_TYPE: Record<ContactChannelType, LucideIcon> = {
   zalo: MessageCircle,
   kakao: MessageSquare,
+  messenger: MessageCircleMore,
   phone: Phone,
   email: Mail,
   social: Globe,

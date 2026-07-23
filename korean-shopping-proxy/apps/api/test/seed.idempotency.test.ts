@@ -95,6 +95,26 @@ test('normal seed never overwrites an existing content ordering handle', { skip:
   assert.equal(after?.version, 7);
 });
 
+test('normal seed reuses legacy contact types instead of creating duplicates', { skip: !RUN }, async () => {
+  const ctx = app!;
+  const ContactChannel = ctx.get<Model<Record<string, unknown>>>(getModelToken('ContactChannel'));
+
+  await ContactChannel.deleteMany({}).exec();
+  await ContactChannel.create([
+    { type: 'zalo', label: 'Zalo thật', handle: '0912345678', icon: 'message-circle', external: true, order: 1, publishState: 'published' },
+    { type: 'kakao', label: 'Kakao thật', handle: 'real-kakao', icon: 'message-square', external: true, order: 2, publishState: 'published' },
+    { type: 'messenger', label: 'Messenger thật', handle: 'vyvy.order', icon: 'message-circle-more', external: true, order: 3, publishState: 'published' },
+    { type: 'phone', label: 'Hotline thật', handle: '+84912345678', icon: 'phone', external: false, order: 4, publishState: 'published' },
+  ]);
+
+  await runSeed(ctx, {});
+
+  assert.equal(await ContactChannel.countDocuments({}), 4);
+  assert.equal(await ContactChannel.countDocuments({ seedKey: { $exists: true } }), 0);
+  const messenger = await ContactChannel.findOne({ type: 'messenger' }).lean().exec();
+  assert.equal(messenger?.handle, 'vyvy.order', 'the real admin-owned handle must be preserved');
+});
+
 test('normal seed never resets admin security state (R2-P1-01)', { skip: !RUN }, async () => {
   const ctx = app!;
   const AdminUser = ctx.get<Model<Record<string, unknown>>>(getModelToken('AdminUser'));

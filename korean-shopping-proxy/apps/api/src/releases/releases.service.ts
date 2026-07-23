@@ -10,7 +10,8 @@ import { RevalidationService, type RevalidationResult } from './revalidation.ser
 import { normalizeLegacySeedMedia } from './legacy-seed-media';
 
 interface PageReleaseDoc { _id: unknown; releaseNumber: number; sectionVisibility: SectionVisibility; content: Omit<SiteContent, 'meta'>; publishedBy?: unknown; publishedAt: Date; revalidation?: RevalidationResult }
-interface SiteStateDoc { _id: unknown; currentReleaseId?: unknown; previousReleaseId?: unknown; sectionVisibilityDraft: SectionVisibility; version: number; releaseSequence: number }
+interface SiteStateDoc { _id: unknown; currentReleaseId?: unknown; previousReleaseId?: unknown; sectionVisibilityDraft: SectionVisibility; version?: number; releaseSequence?: number }
+type PublishableSiteState = SiteStateDoc & { version: number; releaseSequence: number }
 
 @Injectable()
 export class ReleasesService {
@@ -52,9 +53,60 @@ export class ReleasesService {
     }
   }
 
+  /**
+   * Older local databases predate the optimistic version and monotonic release
+   * sequence fields. Backfill only invalid/missing counters with compare-and-set
+   * filters so a concurrent request that already repaired them wins safely.
+   */
+  private async normalizeLegacyState(state: SiteStateDoc): Promise<PublishableSiteState> {
+    const validVersion = Number.isSafeInteger(state.version) && (state.version ?? -1) >= 0;
+    const validSequence = Number.isSafeInteger(state.releaseSequence) && (state.releaseSequence ?? -1) >= 0;
+    if (validVersion && validSequence) return state as PublishableSiteState;
+
+    const latest = await this.releaseModel
+      .findOne()
+      .sort({ releaseNumber: -1 })
+      .select({ releaseNumber: 1 })
+      .lean<Pick<PageReleaseDoc, 'releaseNumber'>>()
+      .exec();
+    const filter: Record<string, unknown> = { _id: state._id };
+    const backfill: Record<string, number> = {};
+
+    if (!validVersion) {
+      filter.version = state.version === undefined ? { $exists: false } : state.version;
+      backfill.version = 0;
+    }
+    if (!validSequence) {
+      filter.releaseSequence =
+        state.releaseSequence === undefined ? { $exists: false } : state.releaseSequence;
+      backfill.releaseSequence = latest?.releaseNumber ?? 0;
+    }
+
+    const repaired = await this.siteStateModel
+      .findOneAndUpdate(filter, { $set: backfill }, { new: true })
+      .lean<SiteStateDoc>()
+      .exec();
+    const current =
+      repaired ?? await this.siteStateModel.findById(state._id).lean<SiteStateDoc>().exec();
+    if (
+      !current ||
+      !Number.isSafeInteger(current.version) ||
+      (current.version ?? -1) < 0 ||
+      !Number.isSafeInteger(current.releaseSequence) ||
+      (current.releaseSequence ?? -1) < 0
+    ) {
+      throw new ConflictException({
+        code: 'CONFLICT',
+        message: 'Legacy release state could not be initialized. Refresh and retry.',
+      });
+    }
+    return current as PublishableSiteState;
+  }
+
   async publish(admin: AuthenticatedAdmin): Promise<Record<string, unknown>> {
-    const state = await this.siteStateModel.findOne().lean<SiteStateDoc>().exec();
-    if (!state?.currentReleaseId) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Site state is not initialized.' });
+    const storedState = await this.siteStateModel.findOne().lean<SiteStateDoc>().exec();
+    if (!storedState?.currentReleaseId) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Site state is not initialized.' });
+    const state = await this.normalizeLegacyState(storedState);
     const publishedAt = new Date();
     const content = await this.assembler.assemble(state.sectionVisibilityDraft);
     this.validateCandidate({ ...content, meta: { releaseNumber: state.releaseSequence + 1, publishedAt: publishedAt.toISOString() } });
@@ -95,7 +147,22 @@ export class ReleasesService {
     ).exec();
     if (!updated) throw new ConflictException({ code: 'CONFLICT', message: 'Release state changed while rolling back.' });
     const revalidation = await this.revalidation.trigger();
+    await this.releaseModel.updateOne({ _id: previous._id }, { $set: { revalidation } }).exec();
     return { id: String(previous._id), releaseNumber: previous.releaseNumber, publishedAt: new Date(previous.publishedAt).toISOString(), revalidation };
+  }
+
+  async revalidateCurrent(admin: AuthenticatedAdmin): Promise<Record<string, unknown>> {
+    void admin;
+    const release = await this.getCurrentRelease();
+    if (!release) throw new NotFoundException({ code: 'NOT_FOUND', message: 'No current release.' });
+    const revalidation = await this.revalidation.trigger();
+    await this.releaseModel.updateOne({ _id: release._id }, { $set: { revalidation } }).exec();
+    return {
+      id: String(release._id),
+      releaseNumber: release.releaseNumber,
+      publishedAt: new Date(release.publishedAt).toISOString(),
+      revalidation,
+    };
   }
 
   async list(): Promise<{ items: Record<string, unknown>[] }> {

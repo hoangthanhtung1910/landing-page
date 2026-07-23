@@ -1,6 +1,8 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { INestApplication } from '@nestjs/common';
+import { getModelToken } from '@nestjs/mongoose';
+import type { Model } from 'mongoose';
 
 const RUN = process.env.RUN_MONGO_TESTS === '1';
 const ADMIN_PASS = 'publishing-media-test-pass';
@@ -75,8 +77,11 @@ after(async () => {
 test('media mutation and publish routes require auth/CSRF', { skip: !RUN }, async () => {
   assert.equal((await json('GET', '/media', undefined, false)).status, 401);
   assert.equal((await json('POST', '/publish', {}, false)).status, 401);
+  assert.equal((await json('POST', '/revalidate', {}, false)).status, 401);
   const response = await fetch(`${base}/publish`, { method: 'POST', headers: { cookie } });
   assert.equal(response.status, 403);
+  const revalidate = await fetch(`${base}/revalidate`, { method: 'POST', headers: { cookie } });
+  assert.equal(revalidate.status, 403);
 });
 
 test('media upload content-inspects MIME and returns a public stable URL', { skip: !RUN }, async () => {
@@ -122,6 +127,19 @@ test('media upload content-inspects MIME and returns a public stable URL', { ski
   assert.equal(asset.height, 1);
   const publicFile = await fetch(String(asset.url).replace('http://localhost:4000', base));
   assert.equal(publicFile.status, 200);
+});
+
+test('publish backfills counters missing from a legacy SiteState', { skip: !RUN }, async () => {
+  const states = app!.get<Model<Record<string, unknown>>>(getModelToken('SiteState'));
+  await states.updateOne({}, { $unset: { releaseSequence: 1, version: 1 } }).exec();
+
+  const published = await json('POST', '/publish', {});
+  assert.equal(published.status, 201, JSON.stringify(published.body));
+  assert.equal(published.body.releaseNumber, 2);
+
+  const repaired = await states.findOne().lean<{ releaseSequence: number; version: number }>().exec();
+  assert.equal(repaired?.releaseSequence, 2);
+  assert.equal(repaired?.version, 1);
 });
 
 test('section visibility rejects required keys and remains draft until publish', { skip: !RUN }, async () => {
@@ -192,4 +210,19 @@ test('rollback restores the previous release and actions are audited', { skip: !
   assert.ok(actions.includes('rollback'));
   assert.ok(actions.includes('toggleSection'));
   assert.ok(actions.includes('mediaUpload'));
+});
+
+test('current release can be revalidated without creating another release', { skip: !RUN }, async () => {
+  const before = await json('GET', '/releases/current');
+  const retried = await json('POST', '/revalidate', {});
+  assert.equal(retried.status, 201);
+  assert.equal(retried.body.releaseNumber, before.body.releaseNumber);
+  assert.ok(
+    ['skipped', 'succeeded'].includes(
+      String((retried.body.revalidation as Record<string, unknown>).status),
+    ),
+  );
+  const after = await json('GET', '/releases/current');
+  assert.equal(after.body.releaseNumber, before.body.releaseNumber);
+  assert.deepEqual(after.body.revalidation, retried.body.revalidation);
 });

@@ -4,14 +4,14 @@ import { ChannelIcon } from "@/components/channel-icon"
 import { AnalyticsLink } from "@/components/analytics-link"
 
 /**
- * Sticky mobile contact bar (T021, FR-012) — keeps Zalo + Kakao reachable from
+ * Sticky mobile contact bar (T021, FR-012) — keeps Zalo, Kakao, and Messenger reachable from
  * every scroll position on mobile. Hidden on desktop (`md:hidden`), where a sticky
  * header carries the same actions. Tap targets are ≥44px tall (h-14).
  *
- * Zalo and Kakao are guaranteed present in `content.contact` (INV-6); we render
- * them in that fixed order regardless of the array order.
+ * Zalo and Kakao are guaranteed present in `content.contact` (INV-6); Messenger
+ * is included when configured. We render them in a fixed order regardless of CMS list order.
  */
-const BAR_TYPES = ["zalo", "kakao"] as const
+const BAR_TYPES = ["zalo", "kakao", "messenger"] as const
 
 export function ContactBar({ contact }: { contact: ContactChannel[] }) {
   const channels = BAR_TYPES.map((t) => contact.find((c) => c.type === t)).filter(

@@ -8,6 +8,7 @@
     "start": "node dist/main.js",
     "seed": "node dist/seed/seed.js",
     "indexes": "node dist/ops/create-indexes.js",
+    "migrate:collection-names": "tsx src/ops/migrate-collection-names.ts",
     "lint": "eslint .",
     "test": "node --import tsx --test test/*.test.ts"
   },

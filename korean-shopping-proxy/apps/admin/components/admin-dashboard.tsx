@@ -1,7 +1,8 @@
 "use client"
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { api, ApiError, restoreSession, setCsrf } from "@/lib/api"
+import { TailAdminShell } from "@/components/tailadmin-shell"
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type RecordValue = Record<string, Json>
@@ -23,7 +24,10 @@ const labels: Record<string, string> = {
   src: "URL ảnh", width: "Chiều rộng", height: "Chiều cao", primaryCta: "Nút chính", secondaryCta: "Nút phụ",
   channels: "Các nút liên hệ", links: "Liên kết", socials: "Mạng xã hội", image: "Ảnh",
   ogImage: "Ảnh chia sẻ", type: "Loại kênh", channel: "Kênh", target: "Đích", subtext: "Nội dung phụ",
+  order: "Thứ tự",
 }
+
+const contactFieldOrder = ["type", "label", "handle", "icon", "external", "order"] as const
 
 const templates: Record<string, RecordValue> = {
   services: { title: "", description: "", icon: "sparkles" },
@@ -33,6 +37,25 @@ const templates: Record<string, RecordValue> = {
   reviews: { name: "", text: "", rating: 5, location: "", approved: false, consentGiven: false },
   faq: { question: "", answer: "" },
   contact: { type: "phone", label: "", handle: "", icon: "phone", external: false },
+}
+
+const listTableColumns: Record<string, readonly string[]> = {
+  services: ["title", "description", "icon"],
+  "trust-points": ["title", "description", "icon"],
+  "process-steps": ["title", "description", "icon"],
+  categories: ["name", "blurb"],
+  reviews: ["name", "rating", "location", "approved"],
+  faq: ["question", "answer"],
+  contact: ["type", "label", "handle", "external"],
+}
+
+const channelTypeLabels: Record<string, string> = {
+  zalo: "Zalo",
+  kakao: "Kakao",
+  messenger: "Messenger",
+  phone: "Điện thoại",
+  email: "Email",
+  social: "Mạng xã hội",
 }
 
 const adminKeys = new Set(["id", "_id", "version", "publishState", "seedKey", "createdAt", "updatedAt", "__v"])
@@ -49,6 +72,15 @@ function blankLike(value: Json): Json {
   return ""
 }
 
+function displayListValue(key: string, value: Json): string {
+  if (key === "type" && typeof value === "string") return channelTypeLabels[value] ?? value
+  if (typeof value === "boolean") return value ? "Có" : "Không"
+  if (value === null || value === "") return "—"
+  if (Array.isArray(value)) return `${value.length} mục`
+  if (typeof value === "object") return "Đã cấu hình"
+  return String(value)
+}
+
 function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401) return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
@@ -59,15 +91,17 @@ function describeError(error: unknown): string {
   return "Đã có lỗi không xác định."
 }
 
-function StructuredFields({ value, onChange, prefix = "" }: { value: RecordValue; onChange: (next: RecordValue) => void; prefix?: string }) {
-  return <div className="fields">{Object.entries(value).map(([key, child]) => {
+function StructuredFields({ value, onChange, prefix = "", fieldOrder }: { value: RecordValue; onChange: (next: RecordValue) => void; prefix?: string; fieldOrder?: readonly string[] }) {
+  const rank = new Map(fieldOrder?.map((key, index) => [key, index]) ?? [])
+  const entries = Object.entries(value).sort(([left], [right]) => (rank.get(left) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right) ?? Number.MAX_SAFE_INTEGER))
+  return <div className="fields">{entries.map(([key, child]) => {
     const id = `${prefix}-${key}`
     const label = labels[key] ?? key
     const set = (next: Json) => onChange({ ...value, [key]: next })
     if (typeof child === "boolean") return <label className="switch" key={key} htmlFor={id}><span>{label}</span><input id={id} type="checkbox" checked={child} onChange={(event) => set(event.target.checked)} /></label>
     if (typeof child === "number") return <label key={key} htmlFor={id}>{label}<input id={id} type="number" value={child} min={key === "rating" ? 1 : undefined} max={key === "rating" ? 5 : undefined} onChange={(event) => set(Number(event.target.value))} /></label>
     if (typeof child === "string") {
-      if (key === "type" || key === "channel") return <label key={key} htmlFor={id}>{label}<select id={id} value={child} onChange={(event) => set(event.target.value)}><option value="zalo">Zalo</option><option value="kakao">Kakao</option><option value="phone">Điện thoại</option><option value="email">Email</option><option value="social">Mạng xã hội</option>{key === "channel" && <option value="anchor">Liên kết trong trang</option>}</select></label>
+      if (key === "type" || key === "channel") return <label key={key} htmlFor={id}>{label}<select id={id} value={child} onChange={(event) => set(event.target.value)}><option value="zalo">Zalo</option><option value="kakao">Kakao</option><option value="messenger">Messenger</option><option value="phone">Điện thoại</option><option value="email">Email</option><option value="social">Mạng xã hội</option>{key === "channel" && <option value="anchor">Liên kết trong trang</option>}</select></label>
       const long = ["description", "text", "answer", "subheadline", "contactSummary", "subtext"].includes(key)
       return <label key={key} htmlFor={id}>{label}{long ? <textarea id={id} value={child} onChange={(event) => set(event.target.value)} /> : <input id={id} value={child} onChange={(event) => set(event.target.value)} />}</label>
     }
@@ -75,6 +109,150 @@ function StructuredFields({ value, onChange, prefix = "" }: { value: RecordValue
     if (child && typeof child === "object") return <fieldset className="nested" key={key}><legend>{label}</legend><StructuredFields value={child as RecordValue} prefix={id} onChange={(next) => set(next)} /><button type="button" className="secondary" onClick={() => { const next = { ...value }; delete next[key]; onChange(next) }}>Bỏ trường tùy chọn</button></fieldset>
     return <button type="button" className="secondary" key={key} onClick={() => set("")}>Thêm {label}</button>
   })}</div>
+}
+
+function ItemEditorModal({
+  mode,
+  section,
+  value,
+  fieldOrder,
+  busy,
+  error,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  mode: "create" | "edit"
+  section: string
+  value: RecordValue
+  fieldOrder?: readonly string[]
+  busy: boolean
+  error: string
+  onChange: (next: RecordValue) => void
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  const modalRef = useRef<HTMLFormElement>(null)
+  const titleId = `${mode}-${section}-title`
+  const isCreate = mode === "create"
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    modalRef.current?.querySelector<HTMLElement>("input, select, textarea")?.focus()
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener("keydown", closeOnEscape)
+    }
+  }, [busy, onClose])
+
+  return (
+    <div className="modal-backdrop">
+      <form
+        ref={modalRef}
+        className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onSubmit={(event) => {
+          event.preventDefault()
+          onSubmit()
+        }}
+      >
+        <div className="modal-header">
+          <div>
+            <p className="modal-eyebrow">{isCreate ? "TẠO NỘI DUNG MỚI" : "CHỈNH SỬA NỘI DUNG"}</p>
+            <h3 id={titleId}>{isCreate ? "Thêm" : "Chỉnh sửa"} {labels[section]}</h3>
+          </div>
+          <button type="button" className="modal-close" onClick={onClose} disabled={busy} aria-label="Đóng">
+            ×
+          </button>
+        </div>
+        <div className="modal-body custom-scrollbar">
+          {error ? <div className="error" role="alert">{error}</div> : null}
+          <StructuredFields value={value} prefix={`${mode}-${section}`} fieldOrder={fieldOrder} onChange={onChange} />
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="secondary" onClick={onClose} disabled={busy}>Hủy</button>
+          <button type="submit" disabled={busy}>
+            {busy ? (isCreate ? "Đang tạo…" : "Đang lưu…") : (isCreate ? "Tạo bản nháp" : "Lưu thay đổi")}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function ListItemsTable({
+  section,
+  records,
+  originals,
+  busy,
+  onEdit,
+  onMove,
+  onRemove,
+}: {
+  section: string
+  records: RecordValue[]
+  originals: RecordValue[]
+  busy: boolean
+  onEdit: (index: number) => void
+  onMove: (index: number, delta: number) => void
+  onRemove: (index: number) => void
+}) {
+  const columns = listTableColumns[section] ?? Object.keys(records[0] ?? {}).slice(0, 3)
+  return (
+    <div className="list-table-card">
+      <div className="list-table-scroll custom-scrollbar">
+        <table className="list-table">
+          <caption className="sr-only">Danh sách {labels[section]}</caption>
+          <thead>
+            <tr>
+              <th className="table-order-column">#</th>
+              {columns.map((key) => <th key={key}>{labels[key] ?? key}</th>)}
+              <th>Trạng thái</th>
+              <th className="table-actions-column">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((record, index) => {
+              const original = originals[index]
+              const publishState = String(original?.publishState ?? "draft")
+              return (
+                <tr key={String(original?.id ?? index)}>
+                  <td className="table-order-cell">{index + 1}</td>
+                  {columns.map((key) => (
+                    <td key={key}>
+                      <span className="table-cell-text" title={displayListValue(key, record[key])}>
+                        {displayListValue(key, record[key])}
+                      </span>
+                    </td>
+                  ))}
+                  <td>
+                    <span className={`badge ${publishState === "published" ? "badge-published" : "badge-draft"}`}>
+                      {publishState === "published" ? "Đã xuất bản" : "Bản nháp"}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="table-actions">
+                      <button type="button" onClick={() => onEdit(index)} disabled={busy}>Chỉnh sửa</button>
+                      <button type="button" className="secondary table-icon-action" onClick={() => onMove(index, -1)} disabled={busy || index === 0} aria-label={`Đưa mục ${index + 1} lên`}>↑</button>
+                      <button type="button" className="secondary table-icon-action" onClick={() => onMove(index, 1)} disabled={busy || index === records.length - 1} aria-label={`Đưa mục ${index + 1} xuống`}>↓</button>
+                      <button type="button" className="danger" onClick={() => onRemove(index)} disabled={busy}>Xóa</button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
 }
 
 function Login({ onLogin }: { onLogin: (username: string) => void }) {
@@ -96,9 +274,12 @@ function ContentEditor({ section }: { section: string }) {
   const [data, setData] = useState<RecordValue | RecordValue[] | null>(null)
   const [drafts, setDrafts] = useState<RecordValue[]>([])
   const [creating, setCreating] = useState<RecordValue | null>(null)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [editing, setEditing] = useState<RecordValue | null>(null)
   const [error, setError] = useState("")
   const [status, setStatus] = useState("")
   const [busy, setBusy] = useState(false)
+  const [reloading, setReloading] = useState(false)
   const [dirty, setDirty] = useState(false)
 
   const load = useCallback(async (clearStatus = true) => {
@@ -108,17 +289,23 @@ function ContentEditor({ section }: { section: string }) {
       setData(result)
       setDrafts((Array.isArray(result) ? result : [result]).map((item) => editable(item) as RecordValue))
       setDirty(false)
-    } catch (err) { setError(describeError(err)) } finally { setBusy(false) }
+      return true
+    } catch (err) {
+      setError(describeError(err))
+      return false
+    } finally { setBusy(false) }
   }, [section])
   useEffect(() => { void load() }, [load])
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault() }; addEventListener("beforeunload", handler); return () => removeEventListener("beforeunload", handler) }, [dirty])
 
-  async function save(index: number) {
+  async function save(index: number, nextDraft = drafts[index]) {
     if (!data) return
     setBusy(true); setError(""); setStatus("")
     const original = (Array.isArray(data) ? data[index] : data) as RecordValue
     try {
-      await api(`/content/${section}${isList ? `/${original.id}` : ""}`, { method: "PUT", body: JSON.stringify({ ...drafts[index], version: original.version }) })
+      await api(`/content/${section}${isList ? `/${original.id}` : ""}`, { method: "PUT", body: JSON.stringify({ ...nextDraft, version: original.version }) })
+      setEditing(null)
+      setEditingIndex(null)
       await load(false); setStatus("Đã lưu bản nháp. Website công khai chưa thay đổi cho tới khi bạn Xuất bản.")
     } catch (err) { setError(describeError(err)) } finally { setBusy(false) }
   }
@@ -127,6 +314,33 @@ function ContentEditor({ section }: { section: string }) {
     setBusy(true); setError("")
     try { await api(`/content/${section}`, { method: "POST", body: JSON.stringify(creating) }); setCreating(null); await load(false); setStatus("Đã tạo bản nháp mới.") } catch (err) { setError(describeError(err)) } finally { setBusy(false) }
   }
+  async function reload() {
+    setReloading(true)
+    const loaded = await load(false)
+    if (loaded) setStatus("Đã tải lại dữ liệu mới nhất.")
+    setReloading(false)
+  }
+  function openCreate() {
+    setError("")
+    setStatus("")
+    setCreating(structuredClone(templates[section]))
+  }
+  const closeCreate = useCallback(() => {
+    setCreating(null)
+    setError("")
+  }, [])
+  function openEdit(index: number) {
+    setError("")
+    setStatus("")
+    setEditingIndex(index)
+    setEditing(structuredClone(drafts[index]))
+  }
+  const closeEdit = useCallback(() => {
+    setEditing(null)
+    setEditingIndex(null)
+    setError("")
+    setDirty(false)
+  }, [])
   async function remove(index: number) {
     if (!data || !confirm("Xóa mục này khỏi bản nháp?")) return
     const original = (data as RecordValue[])[index]
@@ -143,7 +357,90 @@ function ContentEditor({ section }: { section: string }) {
     } catch (err) { setError(describeError(err)) }
   }
 
-  return <section><div className="toolbar"><div><h2>{labels[section]}</h2><p className="muted">Chỉnh sửa ở đây tạo bản nháp; dùng “Xuất bản” khi đã sẵn sàng.</p></div><div className="actions"><button className="secondary" onClick={() => void load()}>Tải lại</button>{isList && <button onClick={() => setCreating(structuredClone(templates[section]))}>Thêm mục</button>}</div></div>{error && <div className="error" role="alert">{error}</div>}{status && <div className="status" role="status">{status}</div>}{busy && !data ? <p>Đang tải…</p> : drafts.length === 0 ? <div className="card empty">Section này chưa có nội dung.</div> : drafts.map((draft, index) => <article className="card" key={String((Array.isArray(data) ? data[index]?.id : section) ?? index)}><div className="item-head"><h3>{isList ? `Mục ${index + 1}` : labels[section]}</h3><span className="badge">{String((Array.isArray(data) ? data[index]?.publishState : (data as RecordValue)?.publishState) ?? "draft")}</span></div><StructuredFields value={draft} prefix={`${section}-${index}`} onChange={(next) => { setDrafts((current) => current.map((entry, i) => i === index ? next : entry)); setDirty(true) }} /><div className="actions" style={{marginTop:"1rem"}}><button disabled={busy} onClick={() => void save(index)}>Lưu bản nháp</button>{isList && <><button className="secondary" disabled={index === 0} onClick={() => void move(index,-1)}>Lên</button><button className="secondary" disabled={index === drafts.length-1} onClick={() => void move(index,1)}>Xuống</button><button className="danger" onClick={() => void remove(index)}>Xóa</button></>}</div></article>)}{creating && <article className="card"><h3>Thêm {labels[section]}</h3><StructuredFields value={creating} prefix={`new-${section}`} onChange={setCreating} /><div className="actions" style={{marginTop:"1rem"}}><button onClick={() => void create()}>Tạo bản nháp</button><button className="secondary" onClick={() => setCreating(null)}>Hủy</button></div></article>}</section>
+  const fieldOrder = section === "contact" ? contactFieldOrder : undefined
+  const originals = Array.isArray(data) ? data : []
+  return (
+    <section>
+      <div className="toolbar">
+        <div>
+          <h2>{labels[section]}</h2>
+          <p className="muted">Chỉnh sửa ở đây tạo bản nháp; dùng “Xuất bản” khi đã sẵn sàng.</p>
+        </div>
+        <div className="actions">
+          <button className="secondary" disabled={busy || reloading} onClick={() => void reload()}>
+            {reloading ? "Đang tải…" : "Tải lại"}
+          </button>
+          {isList && <button onClick={openCreate}>Thêm mục</button>}
+        </div>
+      </div>
+
+      {error && !creating && !editing ? <div className="error" role="alert">{error}</div> : null}
+      {status ? <div className="status" role="status">{status}</div> : null}
+      {busy && !data ? (
+        <p>Đang tải…</p>
+      ) : drafts.length === 0 ? (
+        <div className="card empty">Section này chưa có nội dung.</div>
+      ) : isList ? (
+        <ListItemsTable
+          section={section}
+          records={drafts}
+          originals={originals}
+          busy={busy}
+          onEdit={openEdit}
+          onMove={(index, delta) => void move(index, delta)}
+          onRemove={(index) => void remove(index)}
+        />
+      ) : (
+        <article className="card">
+          <div className="item-head">
+            <h3>{labels[section]}</h3>
+            <span className="badge">{String((data as RecordValue)?.publishState ?? "draft")}</span>
+          </div>
+          <StructuredFields
+            value={drafts[0]}
+            prefix={section}
+            onChange={(next) => {
+              setDrafts([next])
+              setDirty(true)
+            }}
+          />
+          <div className="actions" style={{ marginTop: "1rem" }}>
+            <button disabled={busy} onClick={() => void save(0)}>Lưu bản nháp</button>
+          </div>
+        </article>
+      )}
+
+      {creating ? (
+        <ItemEditorModal
+          mode="create"
+          section={section}
+          value={creating}
+          fieldOrder={fieldOrder}
+          busy={busy}
+          error={error}
+          onChange={setCreating}
+          onClose={closeCreate}
+          onSubmit={() => void create()}
+        />
+      ) : null}
+      {editing && editingIndex !== null ? (
+        <ItemEditorModal
+          mode="edit"
+          section={section}
+          value={editing}
+          fieldOrder={fieldOrder}
+          busy={busy}
+          error={error}
+          onChange={(next) => {
+            setEditing(next)
+            setDirty(true)
+          }}
+          onClose={closeEdit}
+          onSubmit={() => void save(editingIndex, editing)}
+        />
+      ) : null}
+    </section>
+  )
 }
 
 function VisibilityPanel() {
@@ -173,11 +470,14 @@ function Overview() {
   async function action(path:string){
     if(path==="/rollback"&&!confirm("Rollback về release trước? Nội dung live sẽ thay đổi ngay và website sẽ được làm mới."))return
     setBusy(true);setError("")
-    try{const result=await api<RecordValue>(path,{method:"POST",body:"{}"});await load();setStatus(path==="/publish"?`Đã xuất bản release #${result.releaseNumber}.`:`Đã rollback về release #${result.releaseNumber}.`)}
+    try{const result=await api<RecordValue>(path,{method:"POST",body:"{}"});await load();setStatus(path==="/publish"?`Đã xuất bản release #${result.releaseNumber}.`:path==="/rollback"?`Đã rollback về release #${result.releaseNumber}.`:`Đã làm mới website cho release #${result.releaseNumber}.`)}
     catch(e){setError(describeError(e))}
     finally{setBusy(false)}
   }
-  return <section><div className="toolbar"><div><h2>Xuất bản website</h2><p className="muted">Mọi thay đổi đã lưu vẫn là bản nháp cho tới bước này.</p></div><div className="actions"><button disabled={busy} onClick={()=>void action("/publish")}>Xuất bản tất cả</button><button className="secondary" disabled={busy} onClick={()=>void action("/rollback")}>Rollback</button></div></div>{error&&<div className="error" role="alert">{error}</div>}{status&&<div className="status" role="status">{status}</div>}<div className="grid"><div className="card"><h3>Release đang chạy</h3><p className="badge">#{String(current?.releaseNumber??"—")}</p><p>{current?.publishedAt?new Date(String(current.publishedAt)).toLocaleString("vi-VN"):"Chưa có dữ liệu"}</p></div><div className="card"><h3>Làm mới website</h3><p>{String((current?.revalidation as RecordValue|undefined)?.status??"Chưa ghi nhận")}</p><p className="muted">Nếu làm mới thất bại, release vẫn được lưu và hệ thống ghi nhận để thử lại/an toàn vận hành.</p></div></div></section>
+  const revalidation=current?.revalidation as RecordValue|undefined
+  const revalidationStatus=String(revalidation?.status??"")
+  const revalidationLabel=revalidationStatus==="succeeded"?"Đã làm mới":revalidationStatus==="failed"?"Chưa làm mới được":revalidationStatus==="skipped"?"Chưa cấu hình":"Chưa ghi nhận"
+  return <section><div className="toolbar"><div><h2>Xuất bản website</h2><p className="muted">Mọi thay đổi đã lưu vẫn là bản nháp cho tới bước này.</p></div><div className="actions"><button disabled={busy} onClick={()=>void action("/publish")}>Xuất bản tất cả</button><button className="secondary" disabled={busy} onClick={()=>void action("/rollback")}>Rollback</button></div></div>{error&&<div className="error" role="alert">{error}</div>}{status&&<div className="status" role="status">{status}</div>}<div className="grid"><div className="card"><h3>Release đang chạy</h3><p className="badge">#{String(current?.releaseNumber??"—")}</p><p>{current?.publishedAt?new Date(String(current.publishedAt)).toLocaleString("vi-VN"):"Chưa có dữ liệu"}</p></div><div className="card"><h3>Làm mới website</h3><p>{revalidationLabel}</p>{revalidationStatus==="failed"&&<><p className="muted">Release đã xuất bản thành công, nhưng landing page chưa tải dữ liệu mới{revalidation?.error?` (${String(revalidation.error)})`:""}.</p><button disabled={busy} onClick={()=>void action("/revalidate")}>Thử làm mới lại</button></>}{revalidationStatus!=="failed"&&<p className="muted">Landing page được làm mới sau khi xuất bản hoặc rollback.</p>}</div></div></section>
 }
 
 function TablePanel({kind}:{kind:"releases"|"audit"}) {
@@ -195,5 +495,5 @@ export function AdminDashboard() {
   async function logout(){try{await api("/auth/logout",{method:"POST",body:"{}"})}finally{setSession(null)}}
   if(session===undefined)return <main className="login-shell"><p>Đang kiểm tra phiên đăng nhập…</p></main>
   if(!session)return <Login onLogin={(username)=>setSession({username})}/>
-  return <div className="app-shell"><aside className="sidebar"><h1>VyVy Order Korea<br/><small>Quản trị nội dung</small></h1><nav aria-label="Chức năng quản trị">{nav.map((item)=><button key={item} className={view===item?"active":""} onClick={()=>setView(item)}>{labels[item]??item}</button>)}</nav><div className="session"><p>Đang đăng nhập: <strong>{session.username}</strong></p><button className="secondary" onClick={()=>void logout()}>Đăng xuất</button></div></aside><main className="workspace">{view==="overview"?<Overview/>:view==="visibility"?<VisibilityPanel/>:view==="media"?<MediaPanel/>:view==="releases"||view==="audit"?<TablePanel kind={view}/>:view==="password"?<PasswordPanel/>:<ContentEditor section={view}/>}</main></div>
+  return <TailAdminShell items={nav} activeView={view} labels={labels} username={session.username} onViewChange={setView} onLogout={()=>void logout()}>{view==="overview"?<Overview/>:view==="visibility"?<VisibilityPanel/>:view==="media"?<MediaPanel/>:view==="releases"||view==="audit"?<TablePanel kind={view}/>:view==="password"?<PasswordPanel/>:<ContentEditor section={view}/>}</TailAdminShell>
 }

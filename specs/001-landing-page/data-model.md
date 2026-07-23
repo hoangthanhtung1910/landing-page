@@ -226,7 +226,7 @@ When enabled, MUST include cosmetics, fashion, electronics, K-pop goods (FR-008)
 See `contracts/contact-channels.md`.
 | Field | Type | Validation |
 |-------|------|------------|
-| type | `zalo`\|`kakao`\|`phone`\|`email`\|`social` | Discriminator; **unique across `content.contact`** (INV-10) — a `CtaRef` identifies its destination by `type` alone |
+| type | `zalo`\|`kakao`\|`messenger`\|`phone`\|`email`\|`social` | Discriminator; **unique across `content.contact`** (INV-10) — a `CtaRef` identifies its destination by `type` alone |
 | label | string | Display label; non-empty |
 | handle | string | Raw handle/number/id the business supplies; **non-empty and valid for the channel `type`** (published content never carries an empty/malformed handle) |
 | icon | string | Icon name; non-empty |

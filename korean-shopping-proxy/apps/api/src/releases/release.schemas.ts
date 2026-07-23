@@ -1,5 +1,6 @@
 import { Schema } from 'mongoose';
 import { versionField } from '../common/base-fields';
+import { COLLECTION_NAMES } from '../database/collection-names';
 
 /** Optional sections an admin can enable/disable (FR-040/FR-051). */
 export const OPTIONAL_SECTION_KEYS = [
@@ -71,6 +72,6 @@ export const SiteStateSchema = new Schema(
 );
 
 export const releaseModels = [
-  { name: 'PageRelease', schema: PageReleaseSchema },
-  { name: 'SiteState', schema: SiteStateSchema },
+  { name: 'PageRelease', schema: PageReleaseSchema, collection: COLLECTION_NAMES.PageRelease },
+  { name: 'SiteState', schema: SiteStateSchema, collection: COLLECTION_NAMES.SiteState },
 ];

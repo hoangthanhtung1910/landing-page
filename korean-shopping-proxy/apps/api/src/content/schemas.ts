@@ -5,6 +5,7 @@ import {
   seedKeyField,
   versionField,
 } from '../common/base-fields';
+import { COLLECTION_NAMES } from '../database/collection-names';
 
 // Embedded value shapes as sub-schemas (no own _id, not validated when absent).
 const sub = { _id: false } as const;
@@ -22,7 +23,7 @@ const imageRef = new Schema(
 const ctaRef = new Schema(
   {
     label: { type: String, required: true },
-    channel: { type: String, required: true }, // zalo|kakao|phone|email|social|anchor
+    channel: { type: String, required: true }, // zalo|kakao|messenger|phone|email|social|anchor
     target: String,
   },
   sub,
@@ -39,7 +40,7 @@ const footerLink = new Schema(
 const contactChannelShape = {
   type: {
     type: String,
-    enum: ['zalo', 'kakao', 'phone', 'email', 'social'],
+    enum: ['zalo', 'kakao', 'messenger', 'phone', 'email', 'social'],
     required: true,
   },
   label: { type: String, required: true },
@@ -234,19 +235,19 @@ export const ContentOrderSchema = new Schema(
 
 /** Model registry consumed by ContentModule and the seed script. */
 export const contentModels = [
-  { name: 'ContentOrder', schema: ContentOrderSchema },
-  { name: 'Brand', schema: BrandSchema },
-  { name: 'Hero', schema: HeroSchema },
-  { name: 'Cta', schema: CtaSchema },
-  { name: 'Footer', schema: FooterSchema },
-  { name: 'Seo', schema: SeoSchema },
-  { name: 'Service', schema: ServiceSchema },
-  { name: 'TrustPoint', schema: TrustPointSchema },
-  { name: 'ProcessStep', schema: ProcessStepSchema },
-  { name: 'Category', schema: CategorySchema },
-  { name: 'Review', schema: ReviewSchema },
-  { name: 'Faq', schema: FaqSchema },
-  { name: 'ContactChannel', schema: ContactChannelSchema },
+  { name: 'ContentOrder', schema: ContentOrderSchema, collection: COLLECTION_NAMES.ContentOrder },
+  { name: 'Brand', schema: BrandSchema, collection: COLLECTION_NAMES.Brand },
+  { name: 'Hero', schema: HeroSchema, collection: COLLECTION_NAMES.Hero },
+  { name: 'Cta', schema: CtaSchema, collection: COLLECTION_NAMES.Cta },
+  { name: 'Footer', schema: FooterSchema, collection: COLLECTION_NAMES.Footer },
+  { name: 'Seo', schema: SeoSchema, collection: COLLECTION_NAMES.Seo },
+  { name: 'Service', schema: ServiceSchema, collection: COLLECTION_NAMES.Service },
+  { name: 'TrustPoint', schema: TrustPointSchema, collection: COLLECTION_NAMES.TrustPoint },
+  { name: 'ProcessStep', schema: ProcessStepSchema, collection: COLLECTION_NAMES.ProcessStep },
+  { name: 'Category', schema: CategorySchema, collection: COLLECTION_NAMES.Category },
+  { name: 'Review', schema: ReviewSchema, collection: COLLECTION_NAMES.Review },
+  { name: 'Faq', schema: FaqSchema, collection: COLLECTION_NAMES.Faq },
+  { name: 'ContactChannel', schema: ContactChannelSchema, collection: COLLECTION_NAMES.ContactChannel },
 ];
 
 // Additive production indexes for draft lookups and optimistic-concurrency

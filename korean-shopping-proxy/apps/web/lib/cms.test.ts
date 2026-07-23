@@ -137,6 +137,28 @@ test("accepts a valid https social handle", () => {
   assert.doesNotThrow(() => parseContentOrThrow(c))
 })
 
+test("accepts a Messenger username/Page ID and rejects a full URL as its handle", () => {
+  const ok = validContent()
+  ok.contact.push({
+    type: "messenger",
+    label: "Messenger",
+    handle: "vyvy.order",
+    icon: "i",
+    external: true,
+  })
+  assert.doesNotThrow(() => parseContentOrThrow(ok))
+
+  const bad = validContent()
+  bad.contact.push({
+    type: "messenger",
+    label: "Messenger",
+    handle: "https://m.me/vyvy.order",
+    icon: "i",
+    external: true,
+  })
+  assert.throws(() => parseContentOrThrow(bad), /messenger handle/i)
+})
+
 test("rejects javascript:/data: footer links; accepts https, relative, anchor", () => {
   const bad1 = validContent()
   bad1.footer.links = [{ label: "x", href: "javascript:alert(1)" }]
@@ -370,6 +392,7 @@ test("accepts one contact record per configured channel type", () => {
   const c = validContent()
   c.contact.push({ type: "phone", label: "Tel", handle: "+84900000000", icon: "i", external: false })
   c.contact.push({ type: "email", label: "Mail", handle: "hi@vyvy.vn", icon: "i", external: false })
+  c.contact.push({ type: "messenger", label: "Messenger", handle: "vyvy.order", icon: "i", external: true })
   c.contact.push({ type: "social", label: "FB", handle: "https://facebook.com/vyvy", icon: "i", external: true })
   assert.doesNotThrow(() => parseContentOrThrow(c))
 })

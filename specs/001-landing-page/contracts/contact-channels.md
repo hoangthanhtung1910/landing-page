@@ -1,6 +1,6 @@
-# Contract: Contact Channels (Zalo / Kakao / Phone)
+# Contract: Contact Channels (Zalo / Kakao / Messenger / Phone)
 
-**Feature**: 001-landing-page | **Date**: 2026-07-14 (revised 2026-07-16 — sourced from CMS)
+**Feature**: 001-landing-page | **Date**: 2026-07-14 (revised 2026-07-23 — Messenger support)
 
 Defines how contact destinations are configured and turned into working links with graceful fallback.
 Implemented in `apps/web/lib/contact.ts`. Satisfies FR-010, FR-011, FR-012, FR-016. Channel data is now
@@ -24,11 +24,12 @@ validation rejects a duplicated type at `contact.<index>.type`.
 |------|-------------------------------|-----------------|-------------------|
 | `zalo` | phone number or Zalo OA id | `https://zalo.me/<handle>` | https URL opens Zalo app if installed, else Zalo web profile |
 | `kakao` | Kakao channel public id | `https://pf.kakao.com/<handle>` | https URL opens KakaoTalk if installed, else Kakao web channel |
+| `messenger` | Facebook username or Page ID (not a full URL) | `https://m.me/<handle>` | https URL opens Messenger if available, else Messenger web |
 | `phone` | E.164 phone number | `tel:<number>` | Native dialer |
 | `email` | email address | `mailto:<address>` | Native mail client |
 | `social` | full URL | `<url>` as-is | Opens in browser |
 
-**Rule R-1**: Only https channel URLs are used for Zalo/Kakao (never `zalo://`/`kakaotalk://` custom schemes), because https app-links self-degrade to a usable web page when the app is absent. (FR-011)
+**Rule R-1**: Only https channel URLs are used for Zalo/Kakao/Messenger (never custom app schemes), because https app-links self-degrade to a usable web page when the app is absent. (FR-011)
 
 **Rule R-2**: All external channel links render with `target="_blank"` and `rel="noopener noreferrer"`.
 
@@ -53,7 +54,8 @@ function isResolvable(channel: ContactChannel): boolean // false when handle mis
 ## Placement contract (FR-012)
 
 - Zalo + Kakao actions appear in: Hero (§1, above fold), Contact CTA (§7), Footer (§8), site header,
-  and a sticky bottom bar on mobile.
+  and a sticky bottom bar on mobile. Messenger appears in the Contact CTA and sticky mobile bar when
+  configured/referenced, and all configured contact channels appear in the footer.
 - A contact action is reachable from **every scroll position on all supported layouts**: a sticky
   bottom bar on mobile AND a sticky header or floating contact affordance on desktop (not solely a
   non-sticky header CTA). (FR-012, US1 acceptance #2)

@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { COLLECTION_NAMES } from '../database/collection-names';
 
 /**
  * Media asset metadata (T013). Binaries live behind the storage adapter
@@ -19,4 +20,6 @@ export const MediaAssetSchema = new Schema(
   { timestamps: true },
 );
 
-export const mediaModels = [{ name: 'MediaAsset', schema: MediaAssetSchema }];
+export const mediaModels = [
+  { name: 'MediaAsset', schema: MediaAssetSchema, collection: COLLECTION_NAMES.MediaAsset },
+];

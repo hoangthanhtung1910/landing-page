@@ -122,13 +122,23 @@ export async function runSeed(
     const ids: string[] = [];
     for (let i = 0; i < items.length; i++) {
       const seedKey = `${name.toLowerCase()}-${i + 1}`;
-      const doc = await model(name)
-        .findOneAndUpdate(
-          { seedKey },
-          { $setOnInsert: { ...items[i], seedKey, publishState: 'published' } },
-          { upsert: true, new: true },
-        )
-        .exec();
+      // Legacy contact records predate seedKey but already have the stable
+      // identity (`type`) used by CTA references. Reuse those records instead of
+      // inserting a second Zalo/Kakao/etc. record. Do not claim them by adding a
+      // seedKey: they remain admin-owned and survive force-reset.
+      const legacyContact =
+        name === 'ContactChannel' && typeof items[i].type === 'string'
+          ? await model(name).findOne({ type: items[i].type }).exec()
+          : null;
+      const doc =
+        legacyContact ??
+        await model(name)
+          .findOneAndUpdate(
+            { seedKey },
+            { $setOnInsert: { ...items[i], seedKey, publishState: 'published' } },
+            { upsert: true, new: true },
+          )
+          .exec();
       ids.push(String((doc as { _id: unknown })._id));
     }
     idsByCollection[name] = ids;

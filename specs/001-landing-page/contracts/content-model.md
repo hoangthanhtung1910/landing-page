@@ -89,7 +89,7 @@ client-fetched (FR-024).
 | `faq.tsx` | `content.faq` | FAQ | `<h2>` | optional |
 | `cta-section.tsx` | `content.cta`, `content.contact` | §7 | `<h2>` | required |
 | `site-footer.tsx` | `content.footer`, `content.contact` | §8 | `<footer>` | required |
-| `contact-bar.tsx` | `content.contact` (zalo, kakao) | sticky (mobile) | — | — |
+| `contact-bar.tsx` | `content.contact` (zalo, kakao, optional messenger) | sticky (mobile) | — | — |
 
 ## Invariants (MUST hold; verifiable)
 
@@ -110,7 +110,7 @@ client-fetched (FR-024).
 - **INV-9 (authentic reviews)**: `reviews`, when present, contains only approved testimonials; the
   section is empty/omitted rather than fabricated. (FR-043)
 - **INV-10 (deterministic contact identity)**: within `content.contact`, each channel `type`
-  (`zalo`|`kakao`|`phone`|`email`|`social`) appears **at most once**, so a `CtaRef` — which addresses
+  (`zalo`|`kakao`|`messenger`|`phone`|`email`|`social`) appears **at most once**, so a `CtaRef` — which addresses
   its destination by `type` alone — resolves to exactly one contact record independent of array order.
   Full-page validation rejects a duplicated type at `contact.<index>.type`. Every published contact
   `handle` is non-empty and valid for its `type`; the public schema carries no `href` (the web app
